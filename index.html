@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TabContext — Smart Tab Organizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #08080f;
+      --bg2: #0d0d1a;
+      --card: #11111f;
+      --border: #1e1e35;
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --text: #e8e8f8;
+      --muted: #6060a0;
+      --faint: #2a2a45;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* NOISE OVERLAY */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* GLOW BLOBS */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob1 { width: 600px; height: 600px; background: #6366f1; top: -200px; left: -200px; }
+    .blob2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -100px; right: -100px; }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      background: rgba(8,8,15,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .nav-logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      font-size: 14px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .btn-nav {
+      padding: 8px 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: opacity 0.2s;
+    }
+    .btn-nav:hover { opacity: 0.85; }
+
+    /* SECTIONS */
+    section { position: relative; z-index: 1; }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99,102,241,0.1);
+      border: 0.5px solid rgba(99,102,241,0.3);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: #a5b4fc;
+      margin-bottom: 32px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--accent2), #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .btn-primary {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: opacity 0.2s, transform 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .btn-ghost {
+      padding: 14px 28px;
+      background: transparent;
+      color: var(--muted);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 15px;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--faint); }
+
+    /* PREVIEW */
+    .preview {
+      margin-top: 64px;
+      animation: fadeUp 0.8s 0.4s ease both;
+    }
+
+    .preview-window {
+      background: #0d0d1a;
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      max-width: 360px;
+      margin: 0 auto;
+      box-shadow: 0 40px 120px rgba(99,102,241,0.15);
+    }
+
+    .preview-bar {
+      background: #111120;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #febc2e; }
+    .dot.g { background: #28c840; }
+
+    .preview-body { padding: 16px; }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .preview-logo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .preview-logo-icon {
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+
+    .preview-badge {
+      background: #1a1a28;
+      border: 0.5px solid #2a2a40;
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 10px;
+      color: #7070a0;
+    }
+
+    .preview-btn {
+      width: 100%;
+      padding: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .preview-btn2 {
+      width: 100%;
+      padding: 8px;
+      background: #1a1a28;
+      border: 0.5px solid #2a2a40;
+      border-radius: 8px;
+      color: #7070a0;
+      font-size: 11px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .preview-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #3a3a5a;
+      margin-bottom: 6px;
+    }
+
+    .preview-card {
+      background: #13131e;
+      border: 0.5px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-card-left { display: flex; align-items: center; gap: 8px; }
+
+    .preview-icon {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+
+    .preview-card-name { font-size: 11px; font-weight: 500; color: #d0d0e8; }
+    .preview-card-meta { font-size: 10px; color: #4a4a6a; }
+    .preview-trash { font-size: 12px; color: #f87171; }
+
+    /* FEATURES */
+    .features {
+      padding: 100px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      text-align: center;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      text-align: center;
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 700;
+      margin-bottom: 60px;
+      letter-spacing: -1px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--faint);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .feature-icon.purple { background: rgba(99,102,241,0.15); }
+    .feature-icon.green  { background: rgba(74,222,128,0.1); }
+    .feature-icon.amber  { background: rgba(251,191,36,0.1); }
+    .feature-icon.red    { background: rgba(248,113,113,0.1); }
+    .feature-icon.blue   { background: rgba(96,165,250,0.1); }
+    .feature-icon.pink   { background: rgba(244,114,182,0.1); }
+
+    .feature-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* CATEGORIES */
+    .categories {
+      padding: 80px 24px;
+      background: var(--bg2);
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .categories-inner { max-width: 900px; margin: 0 auto; text-align: center; }
+
+    .categories-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 40px;
+    }
+
+    .category-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .category-pill:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    /* FOR WHO */
+    .forwho {
+      padding: 100px 24px;
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .forwho-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 48px;
+    }
+
+    .forwho-card {
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      text-align: left;
+    }
+
+    .forwho-card .emoji { font-size: 28px; margin-bottom: 12px; display: block; }
+    .forwho-card h4 {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .forwho-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* CTA SECTION */
+    .cta-section {
+      padding: 100px 24px;
+      text-align: center;
+      position: relative;
+    }
+
+    .cta-box {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 24px;
+      padding: 56px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%;
+      transform: translateX(-50%);
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-box h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .cta-box p {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .free-badge {
+      display: inline-block;
+      background: rgba(74,222,128,0.1);
+      border: 0.5px solid rgba(74,222,128,0.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: #4ade80;
+      margin-bottom: 24px;
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 0.5px solid var(--border);
+      padding: 32px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--text); }
+
+    /* PRIVACY POLICY PAGE */
+    .privacy-page {
+      display: none;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 120px 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .privacy-page h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+
+    .privacy-page .updated {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 48px;
+    }
+
+    .privacy-page h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 36px 0 12px;
+      color: var(--text);
+    }
+
+    .privacy-page p, .privacy-page li {
+      font-size: 15px;
+      color: #9090c0;
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    .privacy-page ul {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .privacy-page .highlight {
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+      font-size: 14px;
+      color: #a0a0d0;
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 600px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      footer { flex-direction: column; gap: 16px; text-align: center; }
+      .hero-cta { flex-direction: column; }
+      .cta-box { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo" onclick="showPage('home')">
+      <div class="nav-logo-icon">⚡</div>
+      TabContext
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#categories">Categories</a>
+      <a href="#" onclick="showPage('privacy')">Privacy Policy</a>
+    </div>
+    <a href="#" class="btn-nav">Add to Chrome — Free</a>
+  </nav>
+
+  <!-- =================== HOME PAGE =================== -->
+  <div id="homePage">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-badge">✨ Free Chrome Extension</div>
+
+      <h1>Stop Drowning<br/>in <span>Tabs.</span></h1>
+
+      <p>TabContext auto-groups your tabs, saves your sessions with notes, and brings everything back when you need it.</p>
+
+      <div class="hero-cta">
+        <a href="#" class="btn-primary">⚡ Add to Chrome — It's Free</a>
+        <a href="#features" class="btn-ghost">See Features →</a>
+      </div>
+
+      <!-- EXTENSION PREVIEW -->
+      <div class="preview">
+        <div class="preview-window">
+          <div class="preview-bar">
+            <div class="dot r"></div>
+            <div class="dot y"></div>
+            <div class="dot g"></div>
+          </div>
+          <div class="preview-body">
+            <div class="preview-header">
+              <div class="preview-logo">
+                <div class="preview-logo-icon">⚡</div>
+                TabContext
+              </div>
+              <div class="preview-badge">14 tabs open</div>
+            </div>
+            <button class="preview-btn">🗂 Auto-Group My Tabs</button>
+            <button class="preview-btn2">💾 Save Session</button>
+            <div class="preview-label">Saved Sessions</div>
+            <div class="preview-card">
+              <div class="preview-card-left">
+                <div class="preview-icon" style="background:#1e1a3a;">💼</div>
+                <div>
+                  <div class="preview-card-name">Q3 Report Research</div>
+                  <div class="preview-card-meta">12 tabs · Today</div>
+                </div>
+              </div>
+              <span class="preview-trash">🗑</span>
+            </div>
+            <div class="preview-card">
+              <div class="preview-card-left">
+                <div class="preview-icon" style="background:#0f2a1a;">🛍</div>
+                <div>
+                  <div class="preview-card-name">Laptop Deals</div>
+                  <div class="preview-card-meta">8 tabs · Yesterday</div>
+                </div>
+              </div>
+              <span class="preview-trash">🗑</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features" id="features">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need to<br/>tame your browser</h2>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon purple">🗂</div>
+          <h3>Auto-Group in One Click</h3>
+          <p>Instantly organize all open tabs into smart categories. No manual sorting, no drag and drop — just one click.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon green">💾</div>
+          <h3>Save Sessions with Notes</h3>
+          <p>Save any group of tabs as a named session with a note. "Compare insurance quotes before Friday" — never lose context again.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon amber">⚡</div>
+          <h3>Resume Instantly</h3>
+          <p>Reopen any saved session in a brand new window with all tabs restored exactly where you left off.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon blue">🔍</div>
+          <h3>Search Across Sessions</h3>
+          <p>Search by session name, note, or even tab titles. Find anything across all your saved sessions in seconds.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon red">↩️</div>
+          <h3>Undo Grouping</h3>
+          <p>Changed your mind? Undo tab grouping with one click and go back to your original layout instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon pink">🔒</div>
+          <h3>100% Private</h3>
+          <p>All your data stays on your device. No accounts, no servers, no tracking. Your tabs are your business.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORIES -->
+    <section class="categories" id="categories">
+      <div class="categories-inner">
+        <div class="section-label">Smart Grouping</div>
+        <h2 class="section-title">10 categories.<br/>Instantly recognized.</h2>
+        <div class="categories-grid">
+          <div class="category-pill">💼 Work / Productivity</div>
+          <div class="category-pill">🤖 AI Tools</div>
+          <div class="category-pill">📱 Social Media</div>
+          <div class="category-pill">🛍 Shopping</div>
+          <div class="category-pill">📚 Research / Reading</div>
+          <div class="category-pill">🎬 Videos / Entertainment</div>
+          <div class="category-pill">💻 Dev / Code</div>
+          <div class="category-pill">📰 News</div>
+          <div class="category-pill">💰 Finance</div>
+          <div class="category-pill">🎓 Learning</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOR WHO -->
+    <section class="forwho">
+      <div class="section-label">Who It's For</div>
+      <h2 class="section-title">Built for anyone<br/>who lives in their browser</h2>
+      <div class="forwho-grid">
+        <div class="forwho-card">
+          <span class="emoji">🎓</span>
+          <h4>Students</h4>
+          <p>Save research tabs per subject. Resume exactly where you left off before an exam.</p>
+        </div>
+        <div class="forwho-card">
+          <span class="emoji">💼</span>
+          <h4>Professionals</h4>
+          <p>Keep client projects separate. Switch context cleanly without losing anything.</p>
+        </div>
+        <div class="forwho-card">
+          <span class="emoji">🛍</span>
+          <h4>Shoppers</h4>
+          <p>Save deal comparison tabs with a note. Come back later and decide without hunting.</p>
+        </div>
+        <div class="forwho-card">
+          <span class="emoji">👨‍💻</span>
+          <h4>Developers</h4>
+          <p>Group docs, GitHub, localhost tabs by project. One click to switch between them.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+      <div class="cta-box">
+        <div class="free-badge">✓ Completely Free</div>
+        <h2>Ready to fix your<br/>tab problem?</h2>
+        <p>No account required. No data collected.<br/>Just install and start organizing.</p>
+        <a href="#" class="btn-primary" style="font-size:16px; padding:16px 36px;">
+          ⚡ Add to Chrome — It's Free
+        </a>
+      </div>
+    </section>
+
+  </div>
+  <!-- END HOME PAGE -->
+
+  <!-- =================== PRIVACY PAGE =================== -->
+  <div id="privacyPage" class="privacy-page">
+    <a href="#" onclick="showPage('home')" style="font-size:13px; color:var(--muted); text-decoration:none; display:inline-flex; align-items:center; gap:6px; margin-bottom:40px;">← Back to home</a>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: May 2026</p>
+
+    <div class="highlight">
+      TabContext does not collect, transmit, or share any personal data. Everything stays on your device.
+    </div>
+
+    <h2>What We Store Locally</h2>
+    <p>TabContext stores the following data locally on your device using Chrome's built-in storage API:</p>
+    <ul>
+      <li>Names and notes you give to saved sessions</li>
+      <li>URLs and titles of tabs you choose to save</li>
+      <li>Your install date (for internal use only)</li>
+    </ul>
+    <p>This data never leaves your browser and is never sent to any server.</p>
+
+    <h2>What We Do NOT Collect</h2>
+    <ul>
+      <li>No passwords or login credentials</li>
+      <li>No full browsing history</li>
+      <li>No personal information</li>
+      <li>No analytics or usage data</li>
+      <li>No advertising data</li>
+    </ul>
+
+    <h2>Permissions Explained</h2>
+    <ul>
+      <li><strong>tabs</strong> — To read open tab URLs and titles for grouping</li>
+      <li><strong>storage</strong> — To save your sessions locally on your device</li>
+      <li><strong>tabGroups</strong> — To create visual tab groups in Chrome</li>
+      <li><strong>windows</strong> — To open saved sessions in a new window</li>
+    </ul>
+
+    <h2>Third Parties</h2>
+    <p>TabContext does not use any third-party analytics, advertising, or tracking services of any kind.</p>
+
+    <h2>Data Security</h2>
+    <p>Since all data is stored locally on your device using Chrome's secure storage API, your data is as secure as your Chrome profile.</p>
+
+    <h2>Changes to This Policy</h2>
+    <p>If we update this privacy policy, we will update the "Last updated" date at the top of this page.</p>
+
+    <h2>Contact</h2>
+    <p>If you have any questions about this privacy policy, please open an issue on our GitHub repository or contact us directly.</p>
+  </div>
+
+  <!-- FOOTER -->
+  <footer id="siteFooter">
+    <a href="#" class="footer-logo" onclick="showPage('home')">
+      <span>⚡</span> TabContext
+    </a>
+    <div class="footer-links">
+      <a href="#features">Features</a>
+      <a href="#categories">Categories</a>
+      <a href="#" onclick="showPage('privacy')">Privacy Policy</a>
+    </div>
+  </footer>
+
+  <script>
+    function showPage(page) {
+      const home = document.getElementById('homePage');
+      const privacy = document.getElementById('privacyPage');
+      const footer = document.getElementById('siteFooter');
+
+      if (page === 'privacy') {
+        home.style.display = 'none';
+        privacy.style.display = 'block';
+        footer.style.display = 'none';
+        window.scrollTo(0, 0);
+      } else {
+        home.style.display = 'block';
+        privacy.style.display = 'none';
+        footer.style.display = 'flex';
+        window.scrollTo(0, 0);
+      }
+    }
+  </script>
+
+</body>
+</html>
